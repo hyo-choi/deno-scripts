@@ -74,8 +74,8 @@ class Runner {
   
   print() {
     this.packageNames.forEach(packageName => {
-      const size = this.fileSizeMap.get(packageName);
-      console.log(`${size || '    '}\t${packageName}`);
+      const sizeStr = this.fileSizeMap.size === 0 ? '' : this.fileSizeMap.get(packageName) ? `${this.fileSizeMap.get(packageName)}\t` : '\t';
+      console.log(`${sizeStr}${packageName}`);
     });
     return this;
   }
