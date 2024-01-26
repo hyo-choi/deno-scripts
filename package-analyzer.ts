@@ -88,7 +88,7 @@ class Runner {
       const getSizeNumberAndUnit = (sizeStr?: string): {number: number; unit: keyof typeof unitMap} => {
         if (!sizeStr) return {number: 0, unit: 'B'};
         const result = sizeStr.match(/([0-9.]*)([GMKB]{1})/);
-        if (!result) throw new Error('TODO:');
+        if (!result) throw new Error(`${sizeStr} is invalid size string`);
         return {number: Number(result[1]), unit: result[2] as keyof typeof unitMap};
       };
       [...this.packageNames].sort((a, b) => {
