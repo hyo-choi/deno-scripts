@@ -31,7 +31,7 @@ class Runner {
       console.error(`${path} is not a pnpm lock file`);
       Deno.exit(1);
     }
-    this.packageNames = Object.keys(parsed.packages).map(packageName => packageName.slice(1)).sort();
+    this.packageNames = Object.keys(parsed.packages).map(packageName => packageName.slice(1).split('(')[0]).sort();
   }
 
   filterDuplicated() {
@@ -55,14 +55,11 @@ class Runner {
       args: ["-hd", "1", "node_modules/.pnpm"],
       stdout: "piped",
     });
-    // FIXME: @mui/base@5.0.0-beta.24(@types/react@18.2.48)(react-dom@18.2.0)(react@18.2.0) 이런 케이스
-    // 때문에 파일쪽이랑 lock쪽 둘다 뭐 해줘야할지도
     const { stdout } = cmd.outputSync();
     const output = new TextDecoder().decode(stdout);
     output.split("\n").forEach((info) => {
       const matchResult = info.match(
-        /^\s*([0-9.GKM]*)\s*node_modules\/\.pnpm\/(.*@{1}[0-9.]*)$/,
-        // /^\s*([0-9.GKM]*)\s*node_modules\/\.pnpm\/(.*)$/,
+        /^\s*([0-9.GKM]*)\s*node_modules\/\.pnpm\/(@{0,1}[\w\d.+-]*@{1}[0-9.]*)/,
       );
       if (matchResult) {
         const [_, size, packageName] = matchResult;
