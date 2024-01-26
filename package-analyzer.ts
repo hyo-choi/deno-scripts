@@ -17,6 +17,8 @@ type RunArgs = {
   path: string;
   onlyDuplicated: boolean;
   showFileSize: boolean;
+  sortBySize: boolean;
+  reverse: boolean;
 };
 
 class Runner {
@@ -59,7 +61,7 @@ class Runner {
     const output = new TextDecoder().decode(stdout);
     output.split("\n").forEach((info) => {
       const matchResult = info.match(
-        /^\s*([0-9.GKM]*)\s*node_modules\/\.pnpm\/(@{0,1}[\w\d.+-]*@{1}[0-9.]*)/,
+        /^\s*([0-9.GMKB]*)\s*node_modules\/\.pnpm\/(@{0,1}[\w\d.+-]*@{1}[0-9.]*)/,
       );
       if (matchResult) {
         const [_, size, packageName] = matchResult;
@@ -69,16 +71,52 @@ class Runner {
     return this;
   }
   
-  print() {
-    this.packageNames.forEach(packageName => {
-      const sizeStr = this.fileSizeMap.size === 0 ? '' : this.fileSizeMap.get(packageName) ? `${this.fileSizeMap.get(packageName)}\t` : '\t';
-      console.log(`${sizeStr}${packageName}`);
-    });
+  print({sortBySize, reverse}: Pick<RunArgs, 'sortBySize' | 'reverse'>) {
+    const makeResult = (packageName: string, size?: string) => {
+      const prefix = this.fileSizeMap.size === 0 ? '' : `${size ?? ''}\t`;
+      return `${prefix}${packageName}`;
+    }
+    const results: string[] = [];
+
+    if (sortBySize) {
+      const unitMap = {
+        B: 0,
+        K: 1,
+        M: 2,
+        G: 3,
+      }
+      const getSizeNumberAndUnit = (sizeStr?: string): {number: number; unit: keyof typeof unitMap} => {
+        if (!sizeStr) return {number: 0, unit: 'B'};
+        const result = sizeStr.match(/([0-9.]*)([GMKB]{1})/);
+        if (!result) throw new Error('TODO:');
+        return {number: Number(result[1]), unit: result[2] as keyof typeof unitMap};
+      };
+      [...this.packageNames].sort((a, b) => {
+        const {number: aNumber, unit: aUnit} = getSizeNumberAndUnit(this.fileSizeMap.get(a));
+        const {number: bNumber, unit: bUnit} = getSizeNumberAndUnit(this.fileSizeMap.get(b));
+        if (aUnit === bUnit) {
+          return aNumber - bNumber;
+        };
+        return unitMap[aUnit] - unitMap[bUnit];
+      }).forEach((packageName) => {
+        results.push(makeResult(packageName, this.fileSizeMap.get(packageName)));
+      });
+
+    } else {
+      this.packageNames.forEach(packageName => {
+        results.push(makeResult(packageName, this.fileSizeMap.get(packageName)));
+      });
+    }
+
+    if (reverse) {
+      results.reverse();
+    }
+    results.forEach((result) => console.log(result));
     return this;
   }
 }
 
-const run = ({ path, onlyDuplicated, showFileSize }: RunArgs) => {
+const run = ({ path, onlyDuplicated, showFileSize, sortBySize, reverse }: RunArgs) => {
   const runner = new Runner(path);
   if (onlyDuplicated) {
     runner.filterDuplicated();
@@ -86,7 +124,7 @@ const run = ({ path, onlyDuplicated, showFileSize }: RunArgs) => {
   if (showFileSize) {
     runner.getFileSizes();
   }
-  runner.print();
+  runner.print({sortBySize, reverse});
 };
 
 command
@@ -99,13 +137,21 @@ command
   )
   .option(
     "-d, --duplicated",
-    "show only duplicated packages",
+    "show only duplicated packages"
   )
   .option(
     "-s, --size",
     "show file size per package from store",
   )
-  .action(({ input, duplicated = false, size = false }) => {
-    run({ path: input, onlyDuplicated: duplicated, showFileSize: size });
+  .option(
+    "-S, --size-and-sort",
+    "show file size per package from store and sort by size",
+  )
+  .option(
+    "-r, --reverse",
+    "reverse sorted result"
+  )
+  .action(({ input, duplicated = false, size = false, sizeAndSort = false, reverse = false }) => {
+    run({ path: input, onlyDuplicated: duplicated, showFileSize: size || sizeAndSort, sortBySize: sizeAndSort, reverse });
   })
   .parse();
