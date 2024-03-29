@@ -29,7 +29,7 @@ const run = ({ onlyComponent }: RunArgs) => {
       if (componentNameRegex.test(name)) {
         return `export {default as ${name}} from './${name}';\nexport * from './${name}';`;
       }
-      return `export * from './${name}'`;
+      return `export * from './${name}';`;
     }).join("\n"),
   );
 };
